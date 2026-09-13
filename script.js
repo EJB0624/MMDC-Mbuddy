@@ -1,5 +1,5 @@
 let students = [];
-const state = { saved: [], user: null };
+const state = { saved: [], user: null, isAdmin: false };
 const grid = document.querySelector('#cardGrid');
 const empty = document.querySelector('#emptyState');
 const searchInput = document.querySelector('#searchInput');
@@ -8,6 +8,7 @@ const yearFilter = document.querySelector('#yearFilter');
 const styleFilter = document.querySelector('#styleFilter');
 const savedCount = document.querySelector('#savedCount');
 const authButton = document.querySelector('#authButton');
+const adminNav = document.querySelector('#adminNav');
 const toast = document.querySelector('#toast');
 
 function initials(name) {
@@ -62,6 +63,7 @@ function render() {
   grid.hidden = results.length === 0;
   savedCount.textContent = state.saved.length;
   authButton.textContent = state.user ? 'Sign out' : 'Sign in';
+  adminNav.hidden = !state.isAdmin;
 }
 
 function showToast(message) {
@@ -91,16 +93,26 @@ async function refreshAccountData() {
   if (!state.user) {
     students = [];
     state.saved = [];
+    state.isAdmin = false;
     render();
     return;
   }
-  const [profiles, savedIds] = await Promise.all([
+  const [profiles, savedIds, isAdmin] = await Promise.all([
     window.mbuddyDb.listProfiles(),
-    window.mbuddyDb.listSavedProfileIds()
+    window.mbuddyDb.listSavedProfileIds(),
+    window.mbuddyDb.isAdmin()
   ]);
   students = profiles.map(profileFromRow);
   state.saved = savedIds;
+  state.isAdmin = isAdmin;
   render();
+}
+
+function renderAdminList() {
+  const adminList = document.querySelector('#adminList');
+  adminList.innerHTML = students.length
+    ? students.map(student => `<div class="saved-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(student.courseSpecialization)} · Year ${escapeHtml(student.yearLevel)}</p></div><button class="danger-button" type="button" data-delete-profile="${escapeHtml(student.id)}">Delete</button></div>`).join('')
+    : '<div class="saved-empty">No profiles</div>';
 }
 
 async function toggleSave(id) {
@@ -188,6 +200,36 @@ document.querySelector('#savedList').addEventListener('click', async event => {
   await toggleSave(event.target.dataset.remove);
   event.target.closest('.saved-item')?.remove();
   if (!state.saved.length) document.querySelector('#savedList').innerHTML = '<div class="saved-empty">No saved profiles</div>';
+});
+
+const adminDialog = document.querySelector('#adminDialog');
+adminNav.addEventListener('click', () => {
+  if (!state.isAdmin) return;
+  renderAdminList();
+  adminDialog.showModal();
+});
+document.querySelector('#closeAdminDialog').addEventListener('click', () => adminDialog.close());
+adminDialog.addEventListener('click', event => {
+  if (event.target === adminDialog) adminDialog.close();
+});
+document.querySelector('#adminList').addEventListener('click', async event => {
+  const button = event.target.closest('[data-delete-profile]');
+  if (!button || !state.isAdmin) return;
+  const profileId = button.dataset.deleteProfile;
+  const student = students.find(person => person.id === profileId);
+  if (!student || !window.confirm(`Delete ${student.name}'s profile?`)) return;
+  button.disabled = true;
+  try {
+    await window.mbuddyDb.deleteProfile(profileId);
+    students = students.filter(person => person.id !== profileId);
+    state.saved = state.saved.filter(savedId => savedId !== profileId);
+    render();
+    renderAdminList();
+    showToast('Profile deleted');
+  } catch (error) {
+    button.disabled = false;
+    showError(error, 'Could not delete profile');
+  }
 });
 
 authButton.addEventListener('click', async () => {

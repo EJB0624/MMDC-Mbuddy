@@ -26,7 +26,12 @@
 
   async function signUp(email, password) {
     requireClient();
-    const { data, error } = await client.auth.signUp({ email, password });
+    const emailRedirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo }
+    });
     if (error) throw error;
     currentUser = data.session?.user || null;
     return { user: data.user, session: data.session };
@@ -68,6 +73,32 @@
     return data;
   }
 
+  async function isAdmin() {
+    requireUser();
+    const { data, error } = await client
+      .from('admins')
+      .select('user_id')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    if (error) {
+      if (error.code === '42P01' || error.code === 'PGRST205') return false;
+      throw error;
+    }
+    return Boolean(data);
+  }
+
+  async function deleteProfile(profileId) {
+    requireUser();
+    const { data, error } = await client
+      .from('profiles')
+      .delete()
+      .eq('id', profileId)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Profile could not be deleted');
+  }
+
   async function listSavedProfileIds() {
     requireUser();
     const { data, error } = await client.from('saved_buddies').select('profile_id');
@@ -102,6 +133,8 @@
     getUser: () => currentUser,
     listProfiles,
     createProfile,
+    isAdmin,
+    deleteProfile,
     listSavedProfileIds,
     saveProfile,
     unsaveProfile
