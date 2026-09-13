@@ -29,8 +29,14 @@ create table if not exists public.saved_buddies (
   primary key (user_id, profile_id)
 );
 
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
 alter table public.profiles enable row level security;
 alter table public.saved_buddies enable row level security;
+alter table public.admins enable row level security;
 
 drop policy if exists "Profiles are publicly readable" on public.profiles;
 drop policy if exists "Signed-in users can read profiles" on public.profiles;
@@ -40,6 +46,8 @@ drop policy if exists "Users can delete their own profile" on public.profiles;
 drop policy if exists "Users can read their saved profiles" on public.saved_buddies;
 drop policy if exists "Users can save profiles" on public.saved_buddies;
 drop policy if exists "Users can remove saved profiles" on public.saved_buddies;
+drop policy if exists "Users can see their admin status" on public.admins;
+drop policy if exists "Admins can delete any profile" on public.profiles;
 
 create policy "Signed-in users can read profiles"
 on public.profiles for select
@@ -59,6 +67,21 @@ with check (auth.uid() = user_id);
 
 create policy "Users can delete their own profile"
 on public.profiles for delete
+to authenticated
+using (auth.uid() = user_id);
+
+create policy "Admins can delete any profile"
+on public.profiles for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.admins
+    where admins.user_id = auth.uid()
+  )
+);
+
+create policy "Users can see their admin status"
+on public.admins for select
 to authenticated
 using (auth.uid() = user_id);
 
