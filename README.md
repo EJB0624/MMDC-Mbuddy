@@ -4,7 +4,7 @@ A student-pairing website built with HTML, CSS, JavaScript, and Supabase.
 
 ## Course Project
 
-**Group 26 — Web Systems and Technology H3101**
+**Group 26 - Web Systems and Technology H3101**
 
 ### Members
 
