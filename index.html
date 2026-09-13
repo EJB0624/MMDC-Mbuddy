@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Find classmates for projects, study sessions, and group work.">
+  <title>MBuddy — Find a study partner</title>
+  <link rel="icon" type="image/png" href="mbuddy-logo.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="MBuddy home"><img class="brand-logo" src="mbuddy-logo.png" alt="MBuddy — Connect, Collaborate, Succeed"></a>
+    <nav aria-label="Main navigation"><a class="active" href="#matches">Find people</a><button class="text-button" id="savedNav" type="button">Saved <span class="count-pill" id="savedCount">0</span></button></nav>
+    <button class="button button-primary button-small" id="profileButton" type="button">Create profile</button>
+  </header>
+
+  <main id="top">
+    <section class="intro" id="matches">
+      <div class="intro-row">
+        <div><h1>Find a study partner</h1></div>
+      </div>
+    </section>
+
+    <section class="match-section">
+      <div class="filter-bar" aria-label="Match filters">
+        <label class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Search by name or specialization"></label>
+        <label><span class="sr-only">Course &amp; Specialization</span><select id="courseFilter"><option value="all">All courses &amp; specializations</option><option>BSIT - Software Development</option><option>BSIT - Network and Cybersecurity</option><option>BSIT - Data Analytics</option><option>BSIT - Marketing Technology</option><option>BSIT - Entrepreneurial Technology</option><option>BSIT - AI-Powered Product Development</option><option>BSBA - Marketing Management</option><option>BSBA - Human Resource Management</option><option>BSBA - Operations Management</option><option>BSBA - AI for Business Strategy and Operations</option></select></label>
+        <label><span class="sr-only">Year</span><select id="yearFilter"><option value="all">All years</option><option value="1">Year 1</option><option value="2">Year 2</option><option value="3">Year 3</option><option value="4">Year 4</option></select></label>
+        <label><span class="sr-only">Work style</span><select id="styleFilter"><option value="all">Any work style</option><option>Early bird</option><option>Night owl</option><option>Flexible</option></select></label>
+        <button class="button button-secondary button-filter" id="filterButton" type="button">Apply filters</button>
+      </div>
+      <div class="results-meta"><p><strong id="resultCount">0</strong> matches</p><button class="text-button" id="resetButton" type="button">Clear filters</button></div>
+      <div class="card-grid" id="cardGrid"></div>
+      <div class="empty-state" id="emptyState"><h3>No student profiles</h3><button class="button button-primary" id="emptyReset" type="button">Reset filters</button></div>
+    </section>
+  </main>
+
+  <footer><a class="brand" href="#top"><img class="brand-logo footer-logo" src="mbuddy-logo.png" alt="MBuddy"></a><p>© 2026 MBuddy</p></footer>
+
+  <dialog id="profileDialog">
+    <form method="dialog" id="profileForm">
+      <div class="dialog-head"><h2>Create profile</h2><button class="close-button" value="cancel" aria-label="Close">×</button></div>
+      <div class="form-grid">
+        <label>First name<input id="profileName" required placeholder="Alex"></label>
+        <label>Year<select id="profileYear" required><option value="">Choose one</option><option value="1">Year 1</option><option value="2">Year 2</option><option value="3">Year 3</option><option value="4">Year 4</option></select></label>
+        <label class="full">Course &amp; Specialization<select id="profileCourse" required><option value="">Choose one</option><option>BSIT - Software Development</option><option>BSIT - Network and Cybersecurity</option><option>BSIT - Data Analytics</option><option>BSIT - Marketing Technology</option><option>BSIT - Entrepreneurial Technology</option><option>BSIT - AI-Powered Product Development</option><option>BSBA - Marketing Management</option><option>BSBA - Human Resource Management</option><option>BSBA - Operations Management</option><option>BSBA - AI for Business Strategy and Operations</option></select></label>
+        <label class="full">What are you working on?<input id="profileGoal" required placeholder="Calculus final prep"></label>
+        <fieldset class="full"><legend>Preferred work time</legend><div class="choice-row"><label><input type="radio" name="workstyle" value="Early bird" required><span>Early bird</span></label><label><input type="radio" name="workstyle" value="Night owl"><span>Night owl</span></label><label><input type="radio" name="workstyle" value="Flexible"><span>Flexible</span></label></div></fieldset>
+      </div>
+      <button class="button button-primary button-wide" value="default" type="submit">Create profile</button>
+    </form>
+  </dialog>
+
+  <dialog id="savedDialog">
+    <div class="dialog-head"><h2>Saved profiles</h2><button class="close-button" aria-label="Close" onclick="this.closest('dialog').close()">×</button></div>
+    <div id="savedList" class="saved-list"></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="supabase-store.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
