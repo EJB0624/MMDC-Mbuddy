@@ -210,7 +210,8 @@ authDialog.addEventListener('click', event => {
 
 document.querySelector('#authForm').addEventListener('submit', async event => {
   event.preventDefault();
-  if (!event.currentTarget.reportValidity()) return;
+  const form = event.currentTarget;
+  if (!form.reportValidity()) return;
   const email = document.querySelector('#authEmail').value.trim();
   const password = document.querySelector('#authPassword').value;
   const action = event.submitter?.value;
@@ -219,6 +220,7 @@ document.querySelector('#authForm').addEventListener('submit', async event => {
       const result = await window.mbuddyDb.signUp(email, password);
       if (!result.session) {
         authDialog.close();
+        form.reset();
         showToast('Check your email to confirm your account');
         return;
       }
@@ -229,7 +231,7 @@ document.querySelector('#authForm').addEventListener('submit', async event => {
       showToast('Signed in');
     }
     authDialog.close();
-    event.currentTarget.reset();
+    form.reset();
     await refreshAccountData();
   } catch (error) {
     showError(error, 'Account request failed');
