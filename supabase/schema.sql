@@ -18,7 +18,7 @@ create table if not exists public.profiles (
   )),
   year_level smallint not null check (year_level between 1 and 4),
   goal text not null check (char_length(goal) between 1 and 500),
-  work_style text not null check (work_style in ('Early bird', 'Night owl', 'Flexible')),
+  work_style text not null check (work_style in ('Morning', 'Afternoon', 'Evening', 'Flexible')),
   created_at timestamptz not null default now()
 );
 

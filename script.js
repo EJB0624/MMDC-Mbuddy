@@ -100,6 +100,10 @@ document.querySelector('#filterButton').addEventListener('click', render);
 
 const profileDialog = document.querySelector('#profileDialog');
 document.querySelector('#profileButton').addEventListener('click', () => profileDialog.showModal());
+document.querySelector('#closeProfileDialog').addEventListener('click', () => profileDialog.close());
+profileDialog.addEventListener('click', event => {
+  if (event.target === profileDialog) profileDialog.close();
+});
 
 document.querySelector('#profileForm').addEventListener('submit', async event => {
   event.preventDefault();
@@ -171,7 +175,7 @@ function registerAgentTools() {
   const report = error => console.warn('MBuddy tool registration failed', error);
   const tools = [{
     name:'search_buddies', title:'Search buddies',
-    description:'Filter the visible MBuddy student profiles by search text, course and specialization, and work style.',
+    description:'Filter the visible MBuddy student profiles by search text, course and specialization, year, and preferred work time.',
     inputSchema:{type:'object',properties:{query:{type:'string'},courseSpecialization:{type:'string'},year:{type:'integer',minimum:1,maximum:4},style:{type:'string'}},additionalProperties:false},
     annotations:{readOnlyHint:true,untrustedContentHint:true},
     execute(input = {}) {
