@@ -1,5 +1,5 @@
 let students = [];
-const state = { saved: [] };
+const state = { saved: [], user: null };
 const grid = document.querySelector('#cardGrid');
 const empty = document.querySelector('#emptyState');
 const searchInput = document.querySelector('#searchInput');
@@ -7,6 +7,7 @@ const courseFilter = document.querySelector('#courseFilter');
 const yearFilter = document.querySelector('#yearFilter');
 const styleFilter = document.querySelector('#styleFilter');
 const savedCount = document.querySelector('#savedCount');
+const authButton = document.querySelector('#authButton');
 const toast = document.querySelector('#toast');
 
 function initials(name) {
@@ -17,6 +18,17 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
   })[character]);
+}
+
+function profileFromRow(profile) {
+  return {
+    id: profile.id,
+    name: profile.first_name,
+    courseSpecialization: profile.course_specialization,
+    yearLevel: profile.year_level,
+    goal: profile.goal,
+    style: profile.work_style
+  };
 }
 
 function studentCard(student) {
@@ -39,30 +51,60 @@ function render() {
   const style = styleFilter.value;
   const results = students.filter(student => {
     const text = [student.name, student.courseSpecialization, student.style, student.goal].join(' ').toLowerCase();
-    return (!query || text.includes(query)) && (course === 'all' || student.courseSpecialization === course) && (year === 'all' || String(student.yearLevel) === year) && (style === 'all' || student.style === style);
+    return (!query || text.includes(query)) &&
+      (course === 'all' || student.courseSpecialization === course) &&
+      (year === 'all' || String(student.yearLevel) === year) &&
+      (style === 'all' || student.style === style);
   });
   grid.innerHTML = results.map(studentCard).join('');
   document.querySelector('#resultCount').textContent = results.length;
   empty.hidden = results.length > 0;
   grid.hidden = results.length === 0;
   savedCount.textContent = state.saved.length;
+  authButton.textContent = state.user ? 'Sign out' : 'Sign in';
 }
 
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add('show');
   clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => toast.classList.remove('show'), 2600);
+  showToast.timer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+function showError(error, fallback) {
+  console.error(error);
+  showToast(error?.message || fallback);
 }
 
 function requireConfiguration() {
   if (window.mbuddyDb.configured) return true;
-  showToast('Add your Supabase URL and anon key in config.js');
+  showToast('Add your Supabase URL and publishable key in config.js');
   return false;
 }
 
+const authDialog = document.querySelector('#authDialog');
+function openAuthDialog() {
+  if (requireConfiguration()) authDialog.showModal();
+}
+
+async function refreshAccountData() {
+  if (!state.user) {
+    students = [];
+    state.saved = [];
+    render();
+    return;
+  }
+  const [profiles, savedIds] = await Promise.all([
+    window.mbuddyDb.listProfiles(),
+    window.mbuddyDb.listSavedProfileIds()
+  ]);
+  students = profiles.map(profileFromRow);
+  state.saved = savedIds;
+  render();
+}
+
 async function toggleSave(id) {
-  if (!requireConfiguration()) return;
+  if (!state.user) return openAuthDialog();
   const student = students.find(person => person.id === id);
   if (!student) return;
   try {
@@ -75,8 +117,7 @@ async function toggleSave(id) {
     }
     render();
   } catch (error) {
-    console.error(error);
-    showToast('Could not update saved profiles');
+    showError(error, 'Could not update saved profiles');
   }
 }
 
@@ -99,7 +140,11 @@ document.querySelector('#emptyReset').addEventListener('click', resetFilters);
 document.querySelector('#filterButton').addEventListener('click', render);
 
 const profileDialog = document.querySelector('#profileDialog');
-document.querySelector('#profileButton').addEventListener('click', () => profileDialog.showModal());
+document.querySelector('#profileButton').addEventListener('click', () => {
+  if (!requireConfiguration()) return;
+  if (!state.user) return openAuthDialog();
+  profileDialog.showModal();
+});
 document.querySelector('#closeProfileDialog').addEventListener('click', () => profileDialog.close());
 profileDialog.addEventListener('click', event => {
   if (event.target === profileDialog) profileDialog.close();
@@ -107,7 +152,7 @@ profileDialog.addEventListener('click', event => {
 
 document.querySelector('#profileForm').addEventListener('submit', async event => {
   event.preventDefault();
-  if (!event.currentTarget.reportValidity() || !requireConfiguration()) return;
+  if (!event.currentTarget.reportValidity() || !state.user) return;
   const form = event.currentTarget;
   const profile = {
     first_name: document.querySelector('#profileName').value.trim(),
@@ -118,18 +163,19 @@ document.querySelector('#profileForm').addEventListener('submit', async event =>
   };
   try {
     const created = await window.mbuddyDb.createProfile(profile);
-    students.unshift({ id: created.id, name: created.first_name, courseSpecialization: created.course_specialization, yearLevel: created.year_level, goal: created.goal, style: created.work_style });
+    const normalized = profileFromRow(created);
+    students = [normalized, ...students.filter(student => student.id !== normalized.id)];
     profileDialog.close();
     form.reset();
     render();
-    showToast('Profile created');
+    showToast('Profile saved');
   } catch (error) {
-    console.error(error);
-    showToast('Could not create profile');
+    showError(error, 'Could not save profile');
   }
 });
 
 document.querySelector('#savedNav').addEventListener('click', () => {
+  if (!state.user) return openAuthDialog();
   const savedStudents = students.filter(student => state.saved.includes(student.id));
   document.querySelector('#savedList').innerHTML = savedStudents.length
     ? savedStudents.map(student => `<div class="saved-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(student.courseSpecialization)} · Year ${escapeHtml(student.yearLevel)}</p></div><button type="button" data-remove="${escapeHtml(student.id)}">Remove</button></div>`).join('')
@@ -144,28 +190,61 @@ document.querySelector('#savedList').addEventListener('click', async event => {
   if (!state.saved.length) document.querySelector('#savedList').innerHTML = '<div class="saved-empty">No saved profiles</div>';
 });
 
+authButton.addEventListener('click', async () => {
+  if (!requireConfiguration()) return;
+  if (!state.user) return openAuthDialog();
+  try {
+    await window.mbuddyDb.signOut();
+    state.user = null;
+    await refreshAccountData();
+    showToast('Signed out');
+  } catch (error) {
+    showError(error, 'Could not sign out');
+  }
+});
+
+document.querySelector('#closeAuthDialog').addEventListener('click', () => authDialog.close());
+authDialog.addEventListener('click', event => {
+  if (event.target === authDialog) authDialog.close();
+});
+
+document.querySelector('#authForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!event.currentTarget.reportValidity()) return;
+  const email = document.querySelector('#authEmail').value.trim();
+  const password = document.querySelector('#authPassword').value;
+  const action = event.submitter?.value;
+  try {
+    if (action === 'signup') {
+      const result = await window.mbuddyDb.signUp(email, password);
+      if (!result.session) {
+        authDialog.close();
+        showToast('Check your email to confirm your account');
+        return;
+      }
+      state.user = result.session.user;
+      showToast('Account created');
+    } else {
+      state.user = await window.mbuddyDb.signIn(email, password);
+      showToast('Signed in');
+    }
+    authDialog.close();
+    event.currentTarget.reset();
+    await refreshAccountData();
+  } catch (error) {
+    showError(error, 'Account request failed');
+  }
+});
+
 async function start() {
   render();
   if (!window.mbuddyDb.configured) return;
   try {
-    await window.mbuddyDb.init();
-    const [profiles, savedIds] = await Promise.all([
-      window.mbuddyDb.listProfiles(),
-      window.mbuddyDb.listSavedProfileIds()
-    ]);
-    students = profiles.map(profile => ({
-      id: profile.id,
-      name: profile.first_name,
-      courseSpecialization: profile.course_specialization,
-      yearLevel: profile.year_level,
-      goal: profile.goal,
-      style: profile.work_style
-    }));
-    state.saved = savedIds;
-    render();
+    const result = await window.mbuddyDb.init();
+    state.user = result.user;
+    await refreshAccountData();
   } catch (error) {
-    console.error(error);
-    showToast('Could not connect to Supabase');
+    showError(error, 'Could not connect to Supabase');
   }
 }
 
@@ -173,9 +252,9 @@ function registerAgentTools() {
   const context = document.modelContext;
   if (!context?.registerTool) return;
   const report = error => console.warn('MBuddy tool registration failed', error);
-  const tools = [{
+  const tool = {
     name:'search_buddies', title:'Search buddies',
-    description:'Filter the visible MBuddy student profiles by search text, course and specialization, year, and preferred work time.',
+    description:'Filter visible MBuddy profiles by search text, course and specialization, year, and preferred work time.',
     inputSchema:{type:'object',properties:{query:{type:'string'},courseSpecialization:{type:'string'},year:{type:'integer',minimum:1,maximum:4},style:{type:'string'}},additionalProperties:false},
     annotations:{readOnlyHint:true,untrustedContentHint:true},
     execute(input = {}) {
@@ -186,8 +265,8 @@ function registerAgentTools() {
       render();
       return { profileCount: Number(document.querySelector('#resultCount').textContent) };
     }
-  }];
-  tools.forEach(tool => { try { Promise.resolve(context.registerTool(tool)).catch(report); } catch (error) { report(error); } });
+  };
+  try { Promise.resolve(context.registerTool(tool)).catch(report); } catch (error) { report(error); }
 }
 
 void start();

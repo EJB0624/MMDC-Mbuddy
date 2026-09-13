@@ -2,29 +2,49 @@
   const config = window.MBUDDY_CONFIG || {};
   const configured = Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY);
   let client = null;
-  let userId = null;
+  let currentUser = null;
 
   function requireClient() {
     if (!configured) throw new Error('Supabase is not configured');
-    if (!client || !userId) throw new Error('Supabase has not been initialized');
+    if (!client) throw new Error('Supabase has not been initialized');
+  }
+
+  function requireUser() {
+    requireClient();
+    if (!currentUser) throw new Error('Sign in to continue');
   }
 
   async function init() {
-    if (!configured) return { configured: false };
+    if (!configured) return { configured: false, user: null };
     if (!window.supabase?.createClient) throw new Error('Supabase client failed to load');
-
     client = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
-    const { data: sessionData } = await client.auth.getSession();
-    let session = sessionData.session;
+    const { data, error } = await client.auth.getSession();
+    if (error) throw error;
+    currentUser = data.session?.user || null;
+    return { configured: true, user: currentUser };
+  }
 
-    if (!session) {
-      const { data, error } = await client.auth.signInAnonymously();
-      if (error) throw error;
-      session = data.session;
-    }
+  async function signUp(email, password) {
+    requireClient();
+    const { data, error } = await client.auth.signUp({ email, password });
+    if (error) throw error;
+    currentUser = data.session?.user || null;
+    return { user: data.user, session: data.session };
+  }
 
-    userId = session.user.id;
-    return { configured: true, userId };
+  async function signIn(email, password) {
+    requireClient();
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    currentUser = data.user;
+    return data.user;
+  }
+
+  async function signOut() {
+    requireClient();
+    const { error } = await client.auth.signOut();
+    if (error) throw error;
+    currentUser = null;
   }
 
   async function listProfiles() {
@@ -38,10 +58,10 @@
   }
 
   async function createProfile(profile) {
-    requireClient();
+    requireUser();
     const { data, error } = await client
       .from('profiles')
-      .upsert({ user_id: userId, ...profile }, { onConflict: 'user_id' })
+      .upsert({ user_id: currentUser.id, ...profile }, { onConflict: 'user_id' })
       .select('id, first_name, course_specialization, year_level, goal, work_style, created_at')
       .single();
     if (error) throw error;
@@ -49,28 +69,26 @@
   }
 
   async function listSavedProfileIds() {
-    requireClient();
-    const { data, error } = await client
-      .from('saved_buddies')
-      .select('profile_id');
+    requireUser();
+    const { data, error } = await client.from('saved_buddies').select('profile_id');
     if (error) throw error;
     return data.map(row => row.profile_id);
   }
 
   async function saveProfile(profileId) {
-    requireClient();
+    requireUser();
     const { error } = await client
       .from('saved_buddies')
-      .upsert({ user_id: userId, profile_id: profileId }, { onConflict: 'user_id,profile_id' });
+      .upsert({ user_id: currentUser.id, profile_id: profileId }, { onConflict: 'user_id,profile_id' });
     if (error) throw error;
   }
 
   async function unsaveProfile(profileId) {
-    requireClient();
+    requireUser();
     const { error } = await client
       .from('saved_buddies')
       .delete()
-      .eq('user_id', userId)
+      .eq('user_id', currentUser.id)
       .eq('profile_id', profileId);
     if (error) throw error;
   }
@@ -78,6 +96,10 @@
   window.mbuddyDb = {
     configured,
     init,
+    signUp,
+    signIn,
+    signOut,
+    getUser: () => currentUser,
     listProfiles,
     createProfile,
     listSavedProfileIds,

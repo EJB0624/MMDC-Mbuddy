@@ -11,7 +11,7 @@
 <body>
   <header class="site-header">
     <a class="brand" href="#top" aria-label="MBuddy home"><img class="brand-logo" src="mbuddy-logo.png" alt="MBuddy — Connect, Collaborate, Succeed"></a>
-    <nav aria-label="Main navigation"><a class="active" href="#matches">Find people</a><button class="text-button" id="savedNav" type="button">Saved <span class="count-pill" id="savedCount">0</span></button></nav>
+    <nav aria-label="Main navigation"><a class="active" href="#matches">Find people</a><button class="text-button" id="savedNav" type="button">Saved <span class="count-pill" id="savedCount">0</span></button><button class="text-button" id="authButton" type="button">Sign in</button></nav>
     <button class="button button-primary button-small" id="profileButton" type="button">Create profile</button>
   </header>
 
@@ -55,6 +55,18 @@
   <dialog id="savedDialog">
     <div class="dialog-head"><h2>Saved profiles</h2><button class="close-button" aria-label="Close" onclick="this.closest('dialog').close()">×</button></div>
     <div id="savedList" class="saved-list"></div>
+  </dialog>
+
+  <dialog id="authDialog">
+    <form id="authForm" class="auth-form">
+      <div class="dialog-head"><h2>Account</h2><button class="close-button" id="closeAuthDialog" type="button" aria-label="Close">×</button></div>
+      <label>Email<input id="authEmail" type="email" autocomplete="email" required></label>
+      <label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required></label>
+      <div class="auth-actions">
+        <button class="button button-primary" type="submit" value="signin">Sign in</button>
+        <button class="button button-secondary" type="submit" value="signup">Create account</button>
+      </div>
+    </form>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

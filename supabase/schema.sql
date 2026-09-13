@@ -32,9 +32,18 @@ create table if not exists public.saved_buddies (
 alter table public.profiles enable row level security;
 alter table public.saved_buddies enable row level security;
 
-create policy "Profiles are publicly readable"
+drop policy if exists "Profiles are publicly readable" on public.profiles;
+drop policy if exists "Signed-in users can read profiles" on public.profiles;
+drop policy if exists "Users can create their own profile" on public.profiles;
+drop policy if exists "Users can update their own profile" on public.profiles;
+drop policy if exists "Users can delete their own profile" on public.profiles;
+drop policy if exists "Users can read their saved profiles" on public.saved_buddies;
+drop policy if exists "Users can save profiles" on public.saved_buddies;
+drop policy if exists "Users can remove saved profiles" on public.saved_buddies;
+
+create policy "Signed-in users can read profiles"
 on public.profiles for select
-to anon, authenticated
+to authenticated
 using (true);
 
 create policy "Users can create their own profile"
