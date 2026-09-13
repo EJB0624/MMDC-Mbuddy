@@ -18,7 +18,6 @@ A student-pairing website built with HTML, CSS, JavaScript, and Supabase.
 1. Create a Supabase project.
 2. In **Authentication → Providers**, enable email and password sign-ins.
 3. Open the SQL editor and run [`supabase/schema.sql`](supabase/schema.sql).
-4. Open `config.js` and add the project URL and publishable/anon key:
 
 ## Run locally
 
