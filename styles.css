@@ -20,3 +20,4 @@ dialog{width:min(580px,calc(100% - 28px));border:0;border-radius:12px;background
 @media(max-width:650px){.filter-bar{grid-template-columns:1fr}.site-header{height:78px}.brand-logo{width:68px;height:64px}.form-grid,.choice-row,.auth-actions{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
 .saved-item button.danger-button{color:#b42318}.saved-item button:disabled{opacity:.5;cursor:wait}
+/*update color style later when i wake up cause redbull purple is not giving me enough energy */
