@@ -40,6 +40,14 @@ function timeSlotLabel(slot) {
   return ({ A: 'A - Morning', H: 'H - Afternoon', S: 'S - Evening' })[slot] || slot;
 }
 
+function classTimeSlot(course) {
+  return course.match(/ - ([AHS])$/)?.[1] || '';
+}
+
+function classNameWithoutSlot(course) {
+  return course.replace(/ - [AHS]$/, '');
+}
+
 function studentCard(student) {
   const saved = state.saved.includes(student.id);
   return `<article class="buddy-card" data-id="${escapeHtml(student.id)}">
@@ -64,7 +72,7 @@ function render() {
     return (!query || text.includes(query)) &&
       (course === 'all' || student.courseSpecialization === course) &&
       (year === 'all' || String(student.yearLevel) === year) &&
-      (timeSlot === 'all' || student.timeSlot === timeSlot) &&
+      (timeSlot === 'all' || student.timeSlot === timeSlot || student.classes.some(courseName => classTimeSlot(courseName) === timeSlot)) &&
       (style === 'all' || student.style === style);
   });
   grid.innerHTML = results.map(studentCard).join('');
@@ -164,13 +172,47 @@ document.querySelector('#filterButton').addEventListener('click', render);
 
 const profileDialog = document.querySelector('#profileDialog');
 const profileClassSelect = document.querySelector('#profileClassSelect');
+const profileClassTimeSlot = document.querySelector('#profileClassTimeSlot');
 const selectedClassesElement = document.querySelector('#selectedClasses');
+const profileCourse = document.querySelector('#profileCourse');
+const profileYear = document.querySelector('#profileYear');
+const profileTerm = document.querySelector('#profileTerm');
+const profileAllClasses = document.querySelector('#profileAllClasses');
+const addClassButton = document.querySelector('#addClassButton');
 
-for (const [code, title] of window.MBUDDY_COURSES || []) {
-  const option = document.createElement('option');
-  option.value = `${code} - ${title}`;
-  option.textContent = option.value;
-  profileClassSelect.append(option);
+function availableProfileClasses() {
+  const curriculum = window.MBUDDY_CURRICULA?.[profileCourse.value] || [];
+  if (profileAllClasses.checked) return curriculum;
+  return curriculum.filter(([, , year, term]) => String(year) === profileYear.value && String(term) === profileTerm.value);
+}
+
+function updateProfileClassOptions() {
+  const hasCourse = Boolean(profileCourse.value);
+  const hasYearAndTerm = Boolean(profileYear.value && profileTerm.value);
+  const canChoose = hasCourse && (profileAllClasses.checked || hasYearAndTerm);
+  const courses = canChoose ? availableProfileClasses() : [];
+  let prompt = 'Choose a class';
+  if (!hasCourse) prompt = 'Choose course & specialization first';
+  else if (!profileAllClasses.checked && !profileYear.value) prompt = 'Choose year first';
+  else if (!profileAllClasses.checked && !profileTerm.value) prompt = 'Choose term first';
+  else if (!courses.length) prompt = 'No listed classes';
+
+  profileClassSelect.replaceChildren(new Option(prompt, ''));
+  profileClassTimeSlot.value = '';
+  for (const [code, title] of courses) {
+    const label = `${code} - ${title}`;
+    profileClassSelect.append(new Option(label, label));
+  }
+  profileClassSelect.disabled = !courses.length;
+  profileClassTimeSlot.disabled = !courses.length;
+  addClassButton.disabled = !courses.length;
+
+  const allowed = new Set(courses.map(([code, title]) => `${code} - ${title}`));
+  const filtered = selectedClasses.filter(course => allowed.has(classNameWithoutSlot(course)));
+  if (filtered.length !== selectedClasses.length) {
+    selectedClasses = filtered;
+    renderSelectedClasses();
+  }
 }
 
 function renderSelectedClasses() {
@@ -179,14 +221,25 @@ function renderSelectedClasses() {
   ).join('');
 }
 
-document.querySelector('#addClassButton').addEventListener('click', () => {
+addClassButton.addEventListener('click', () => {
   const course = profileClassSelect.value;
+  const timeSlot = profileClassTimeSlot.value;
   if (!course) return;
-  if (selectedClasses.includes(course)) return showToast('Class already added');
+  if (!timeSlot) {
+    showToast('Choose a time slot for the class');
+    profileClassTimeSlot.focus();
+    return;
+  }
+  if (selectedClasses.some(selected => classNameWithoutSlot(selected) === course)) return showToast('Class already added');
   if (selectedClasses.length >= 8) return showToast('You can add up to 8 classes');
-  selectedClasses.push(course);
+  selectedClasses.push(`${course} - ${timeSlot}`);
   profileClassSelect.value = '';
+  profileClassTimeSlot.value = '';
   renderSelectedClasses();
+});
+
+[profileCourse, profileYear, profileTerm, profileAllClasses].forEach(control => {
+  control.addEventListener('change', updateProfileClassOptions);
 });
 
 selectedClassesElement.addEventListener('click', event => {
@@ -222,7 +275,7 @@ document.querySelector('#profileForm').addEventListener('submit', async event =>
     goal: document.querySelector('#profileGoal').value.trim(),
     work_style: new FormData(form).get('workstyle'),
     classes: [...selectedClasses],
-    time_slot: document.querySelector('#profileTimeSlot').value
+    time_slot: null
   };
   try {
     const created = await window.mbuddyDb.createProfile(profile);
@@ -232,12 +285,15 @@ document.querySelector('#profileForm').addEventListener('submit', async event =>
     form.reset();
     selectedClasses = [];
     renderSelectedClasses();
+    updateProfileClassOptions();
     render();
     showToast('Profile saved');
   } catch (error) {
     showError(error, 'Could not save profile');
   }
 });
+
+updateProfileClassOptions();
 
 document.querySelector('#savedNav').addEventListener('click', () => {
   if (!state.user) return openAuthDialog();
@@ -351,7 +407,7 @@ function registerAgentTools() {
   const report = error => console.warn('MBuddy tool registration failed', error);
   const tool = {
     name:'search_buddies', title:'Search buddies',
-    description:'Filter visible MBuddy profiles by search text, course and specialization, year, time slot, and preferred work time.',
+    description:'Filter visible MBuddy profiles by search text, course and specialization, year, class time slot, and preferred work time.',
     inputSchema:{type:'object',properties:{query:{type:'string'},courseSpecialization:{type:'string'},year:{type:'integer',minimum:1,maximum:4},timeSlot:{type:'string',enum:['A','H','S']},style:{type:'string'}},additionalProperties:false},
     annotations:{readOnlyHint:true,untrustedContentHint:true},
     execute(input = {}) {
