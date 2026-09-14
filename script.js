@@ -1,6 +1,6 @@
 let students = [];
 let selectedClasses = [];
-const state = { saved: [], user: null, isAdmin: false };
+const state = { saved: [], user: null, isAdmin: false, requests: [] };
 const grid = document.querySelector('#cardGrid');
 const empty = document.querySelector('#emptyState');
 const searchInput = document.querySelector('#searchInput');
@@ -11,6 +11,7 @@ const styleFilter = document.querySelector('#styleFilter');
 const savedCount = document.querySelector('#savedCount');
 const authButton = document.querySelector('#authButton');
 const adminNav = document.querySelector('#adminNav');
+const requestCount = document.querySelector('#requestCount');
 const toast = document.querySelector('#toast');
 
 function initials(name) {
@@ -26,9 +27,11 @@ function escapeHtml(value) {
 function profileFromRow(profile) {
   return {
     id: profile.id,
+    ownerId: profile.user_id,
     name: profile.first_name,
     courseSpecialization: profile.course_specialization,
     yearLevel: profile.year_level,
+    term: profile.term,
     goal: profile.goal,
     style: profile.work_style,
     classes: Array.isArray(profile.classes) ? profile.classes : [],
@@ -48,16 +51,54 @@ function classNameWithoutSlot(course) {
   return course.replace(/ - [AHS]$/, '');
 }
 
+function programLine(student) {
+  return `${student.courseSpecialization} · Year ${student.yearLevel}${student.term ? ` · Term ${student.term}` : ''}`;
+}
+
+function requestForProfile(profileId) {
+  return state.requests.find(request => request.other_profile_id === profileId && request.request_status !== 'declined');
+}
+
+function gmailComposeUrl(email) {
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
+}
+
+function buddyContact(student) {
+  const request = requestForProfile(student.id);
+  if (request?.request_status !== 'accepted' || !request.other_email) return '';
+  const email = escapeHtml(request.other_email);
+  return `<div class="buddy-contact"><span>MMDC email</span><a href="${escapeHtml(gmailComposeUrl(request.other_email))}" target="_blank" rel="noopener noreferrer">${email}</a></div>`;
+}
+
+function buddyAction(student) {
+  const request = requestForProfile(student.id);
+  if (request?.request_status === 'accepted' && request.other_email) {
+    return `<a class="button button-primary buddy-message" href="${escapeHtml(gmailComposeUrl(request.other_email))}" target="_blank" rel="noopener noreferrer">Message</a>`;
+  }
+  if (request?.request_status === 'pending' && request.direction === 'outgoing') {
+    return '<button class="button button-secondary buddy-button" type="button" disabled>Request sent</button>';
+  }
+  if (request?.request_status === 'pending' && request.direction === 'incoming') {
+    return '<button class="button button-primary request-button" type="button">Respond</button>';
+  }
+  return '<button class="button button-primary buddy-button" type="button">BuddyUp</button>';
+}
+
 function studentCard(student) {
   const saved = state.saved.includes(student.id);
+  const isOwnProfile = state.user?.id === student.ownerId;
   return `<article class="buddy-card" data-id="${escapeHtml(student.id)}">
     <div class="card-top">
       <div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div>
-      <div class="card-name"><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(student.courseSpecialization)} · Year ${escapeHtml(student.yearLevel)}</p></div>
+      <div class="card-name"><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(programLine(student))}</p></div>
     </div>
     <p class="card-note">${escapeHtml(student.goal)}</p>
     <div class="card-tags"><span>${escapeHtml(student.style)}</span>${student.timeSlot ? `<span>${escapeHtml(timeSlotLabel(student.timeSlot))}</span>` : ''}${student.classes.map(course => `<span class="class-tag">${escapeHtml(course)}</span>`).join('')}</div>
-    <div class="card-footer"><button class="button button-secondary save-button ${saved ? 'saved' : ''}" type="button">${saved ? 'Saved' : 'Save profile'}</button></div>
+    ${buddyContact(student)}
+    <div class="card-footer">${isOwnProfile
+      ? '<button class="button button-secondary edit-profile-button" type="button">Edit profile</button>'
+      : `<button class="button button-secondary save-button ${saved ? 'saved' : ''}" type="button">${saved ? 'Saved' : 'Save profile'}</button>${buddyAction(student)}`}
+    </div>
   </article>`;
 }
 
@@ -80,8 +121,12 @@ function render() {
   empty.hidden = results.length > 0;
   grid.hidden = results.length === 0;
   savedCount.textContent = state.saved.length;
+  const incomingRequestCount = state.requests.filter(request => request.request_status === 'pending' && request.direction === 'incoming').length;
+  requestCount.textContent = incomingRequestCount;
+  requestCount.classList.toggle('has-requests', incomingRequestCount > 0);
   authButton.textContent = state.user ? 'Sign out' : 'Sign in';
   adminNav.hidden = !state.isAdmin;
+  document.querySelector('#profileButton').textContent = students.some(student => student.ownerId === state.user?.id) ? 'Edit profile' : 'Create profile';
 }
 
 function showToast(message) {
@@ -112,24 +157,27 @@ async function refreshAccountData() {
     students = [];
     state.saved = [];
     state.isAdmin = false;
+    state.requests = [];
     render();
     return;
   }
-  const [profiles, savedIds, isAdmin] = await Promise.all([
+  const [profiles, savedIds, isAdmin, requests] = await Promise.all([
     window.mbuddyDb.listProfiles(),
     window.mbuddyDb.listSavedProfileIds(),
-    window.mbuddyDb.isAdmin()
+    window.mbuddyDb.isAdmin(),
+    window.mbuddyDb.listBuddyRequests()
   ]);
   students = profiles.map(profileFromRow);
   state.saved = savedIds;
   state.isAdmin = isAdmin;
+  state.requests = requests;
   render();
 }
 
 function renderAdminList() {
   const adminList = document.querySelector('#adminList');
   adminList.innerHTML = students.length
-    ? students.map(student => `<div class="saved-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(student.courseSpecialization)} · Year ${escapeHtml(student.yearLevel)}</p></div><button class="danger-button" type="button" data-delete-profile="${escapeHtml(student.id)}">Delete</button></div>`).join('')
+    ? students.map(student => `<div class="saved-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(programLine(student))}</p></div><button class="danger-button" type="button" data-delete-profile="${escapeHtml(student.id)}">Delete</button></div>`).join('')
     : '<div class="saved-empty">No profiles</div>';
 }
 
@@ -151,6 +199,21 @@ async function toggleSave(id) {
   }
 }
 
+async function sendBuddyUp(profileId) {
+  if (!state.user) return openAuthDialog();
+  if (!students.some(student => student.ownerId === state.user.id)) {
+    showToast('Create your profile before sending a BuddyUp request');
+    return;
+  }
+  try {
+    await window.mbuddyDb.sendBuddyRequest(profileId);
+    await refreshAccountData();
+    showToast('BuddyUp request sent');
+  } catch (error) {
+    showError(error, 'Could not send BuddyUp request');
+  }
+}
+
 function resetFilters() {
   searchInput.value = '';
   courseFilter.value = 'all';
@@ -162,7 +225,13 @@ function resetFilters() {
 
 grid.addEventListener('click', event => {
   const card = event.target.closest('.buddy-card');
-  if (card && event.target.closest('.save-button')) void toggleSave(card.dataset.id);
+  if (!card) return;
+  if (event.target.closest('.save-button')) return void toggleSave(card.dataset.id);
+  if (event.target.closest('.buddy-button')) return void sendBuddyUp(card.dataset.id);
+  if (event.target.closest('.request-button')) return openRequestsDialog();
+  const student = students.find(person => person.id === card.dataset.id);
+  if (student?.ownerId === state.user?.id && !event.target.closest('a, button')) openProfileEditor(student);
+  if (event.target.closest('.edit-profile-button') && student) openProfileEditor(student);
 });
 
 [searchInput, courseFilter, yearFilter, timeSlotFilter, styleFilter].forEach(control => control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', render));
@@ -171,6 +240,9 @@ document.querySelector('#emptyReset').addEventListener('click', resetFilters);
 document.querySelector('#filterButton').addEventListener('click', render);
 
 const profileDialog = document.querySelector('#profileDialog');
+const profileForm = document.querySelector('#profileForm');
+const profileDialogTitle = document.querySelector('#profileDialogTitle');
+const profileSubmitButton = document.querySelector('#profileSubmitButton');
 const profileClassSelect = document.querySelector('#profileClassSelect');
 const profileClassTimeSlot = document.querySelector('#profileClassTimeSlot');
 const selectedClassesElement = document.querySelector('#selectedClasses');
@@ -221,6 +293,33 @@ function renderSelectedClasses() {
   ).join('');
 }
 
+function openProfileEditor(student = null) {
+  profileForm.reset();
+  selectedClasses = [];
+  profileDialogTitle.textContent = student ? 'Edit profile' : 'Create profile';
+  profileSubmitButton.textContent = student ? 'Save changes' : 'Create profile';
+
+  if (student) {
+    document.querySelector('#profileName').value = student.name;
+    profileYear.value = String(student.yearLevel || '');
+    profileTerm.value = student.term ? String(student.term) : '';
+    profileCourse.value = student.courseSpecialization;
+    document.querySelector('#profileGoal').value = student.goal;
+    const styleControl = profileForm.querySelector(`[name="workstyle"][value="${student.style}"]`);
+    if (styleControl) styleControl.checked = true;
+
+    const scheduled = new Set((window.MBUDDY_CURRICULA?.[student.courseSpecialization] || [])
+      .filter(([, , year, term]) => year === Number(student.yearLevel) && term === Number(student.term))
+      .map(([code, title]) => `${code} - ${title}`));
+    profileAllClasses.checked = !student.term || student.classes.some(course => !scheduled.has(classNameWithoutSlot(course)));
+  }
+
+  updateProfileClassOptions();
+  selectedClasses = student ? [...student.classes] : [];
+  renderSelectedClasses();
+  profileDialog.showModal();
+}
+
 addClassButton.addEventListener('click', () => {
   const course = profileClassSelect.value;
   const timeSlot = profileClassTimeSlot.value;
@@ -252,14 +351,14 @@ selectedClassesElement.addEventListener('click', event => {
 document.querySelector('#profileButton').addEventListener('click', () => {
   if (!requireConfiguration()) return;
   if (!state.user) return openAuthDialog();
-  profileDialog.showModal();
+  openProfileEditor(students.find(student => student.ownerId === state.user.id) || null);
 });
 document.querySelector('#closeProfileDialog').addEventListener('click', () => profileDialog.close());
 profileDialog.addEventListener('click', event => {
   if (event.target === profileDialog) profileDialog.close();
 });
 
-document.querySelector('#profileForm').addEventListener('submit', async event => {
+profileForm.addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
   if (!form.reportValidity() || !state.user) return;
@@ -272,6 +371,7 @@ document.querySelector('#profileForm').addEventListener('submit', async event =>
     first_name: document.querySelector('#profileName').value.trim(),
     course_specialization: document.querySelector('#profileCourse').value,
     year_level: Number(document.querySelector('#profileYear').value),
+    term: Number(document.querySelector('#profileTerm').value),
     goal: document.querySelector('#profileGoal').value.trim(),
     work_style: new FormData(form).get('workstyle'),
     classes: [...selectedClasses],
@@ -280,13 +380,12 @@ document.querySelector('#profileForm').addEventListener('submit', async event =>
   try {
     const created = await window.mbuddyDb.createProfile(profile);
     const normalized = profileFromRow(created);
-    students = [normalized, ...students.filter(student => student.id !== normalized.id)];
     profileDialog.close();
     form.reset();
     selectedClasses = [];
     renderSelectedClasses();
     updateProfileClassOptions();
-    render();
+    await refreshAccountData();
     showToast('Profile saved');
   } catch (error) {
     showError(error, 'Could not save profile');
@@ -299,7 +398,7 @@ document.querySelector('#savedNav').addEventListener('click', () => {
   if (!state.user) return openAuthDialog();
   const savedStudents = students.filter(student => state.saved.includes(student.id));
   document.querySelector('#savedList').innerHTML = savedStudents.length
-    ? savedStudents.map(student => `<div class="saved-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(student.courseSpecialization)} · Year ${escapeHtml(student.yearLevel)}</p></div><button type="button" data-remove="${escapeHtml(student.id)}">Remove</button></div>`).join('')
+    ? savedStudents.map(student => `<div class="saved-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(programLine(student))}</p></div><button type="button" data-remove="${escapeHtml(student.id)}">Remove</button></div>`).join('')
     : '<div class="saved-empty">No saved profiles</div>';
   document.querySelector('#savedDialog').showModal();
 });
@@ -309,6 +408,50 @@ document.querySelector('#savedList').addEventListener('click', async event => {
   await toggleSave(event.target.dataset.remove);
   event.target.closest('.saved-item')?.remove();
   if (!state.saved.length) document.querySelector('#savedList').innerHTML = '<div class="saved-empty">No saved profiles</div>';
+});
+
+const requestsDialog = document.querySelector('#requestsDialog');
+const requestsList = document.querySelector('#requestsList');
+
+function renderRequestsList() {
+  const requests = state.requests.filter(request => request.request_status !== 'declined');
+  requestsList.innerHTML = requests.length ? requests.map(request => {
+    let actions = '';
+    if (request.request_status === 'pending' && request.direction === 'incoming') {
+      actions = `<div class="request-actions"><button class="button button-primary" type="button" data-request-action="accept" data-request-id="${escapeHtml(request.request_id)}">Accept</button><button class="button button-secondary" type="button" data-request-action="decline" data-request-id="${escapeHtml(request.request_id)}">Decline</button></div>`;
+    } else if (request.request_status === 'pending') {
+      actions = '<span class="request-status">Waiting for response</span>';
+    } else if (request.other_email) {
+      actions = `<a class="buddy-email-link" href="${escapeHtml(gmailComposeUrl(request.other_email))}" target="_blank" rel="noopener noreferrer">${escapeHtml(request.other_email)}</a>`;
+    }
+    return `<div class="request-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(request.other_name))}</div><div class="request-details"><h3>${escapeHtml(request.other_name)}</h3><p>${request.request_status === 'accepted' ? 'Buddy' : request.direction === 'incoming' ? 'Wants to BuddyUp' : 'Request sent'}</p></div>${actions}</div>`;
+  }).join('') : '<div class="saved-empty">No BuddyUp requests</div>';
+}
+
+function openRequestsDialog() {
+  if (!state.user) return openAuthDialog();
+  renderRequestsList();
+  requestsDialog.showModal();
+}
+
+document.querySelector('#requestsNav').addEventListener('click', openRequestsDialog);
+document.querySelector('#closeRequestsDialog').addEventListener('click', () => requestsDialog.close());
+requestsDialog.addEventListener('click', event => {
+  if (event.target === requestsDialog) requestsDialog.close();
+});
+requestsList.addEventListener('click', async event => {
+  const button = event.target.closest('[data-request-action]');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    await window.mbuddyDb.respondToBuddyRequest(button.dataset.requestId, button.dataset.requestAction === 'accept');
+    await refreshAccountData();
+    renderRequestsList();
+    showToast(button.dataset.requestAction === 'accept' ? 'BuddyUp request accepted' : 'BuddyUp request declined');
+  } catch (error) {
+    button.disabled = false;
+    showError(error, 'Could not update BuddyUp request');
+  }
 });
 
 const adminDialog = document.querySelector('#adminDialog');
@@ -368,6 +511,10 @@ document.querySelector('#authForm').addEventListener('submit', async event => {
   const action = event.submitter?.value;
   try {
     if (action === 'signup') {
+      if (!/@mmdc\.mcl\.edu\.ph$/i.test(email)) {
+        showToast('Use your MMDC email to create an account');
+        return;
+      }
       const result = await window.mbuddyDb.signUp(email, password);
       if (!result.session) {
         authDialog.close();
