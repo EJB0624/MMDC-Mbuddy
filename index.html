@@ -10,7 +10,7 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#top" aria-label="MBuddy home"><img class="brand-logo" src="mbuddy-logo.png" alt="MBuddy — Connect, Collaborate, Succeed"></a>
+    <a class="brand" href="#top" aria-label="MBuddy home"><img class="brand-logo" src="mbuddy-logo.png" alt="MBuddy - Connect, Collaborate, Succeed"></a>
     <nav aria-label="Main navigation"><a class="active" href="#matches">Find people</a><button class="text-button" id="savedNav" type="button">Saved <span class="count-pill" id="savedCount">0</span></button><button class="text-button" id="authButton" type="button">Sign in</button></nav>
     <div class="header-actions"><button class="button button-secondary button-small" id="adminNav" type="button" hidden>Admin</button><button class="button button-primary button-small" id="profileButton" type="button">Create profile</button></div>
   </header>
@@ -24,9 +24,10 @@
 
     <section class="match-section">
       <div class="filter-bar" aria-label="Match filters">
-        <label class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Search by name or specialization"></label>
+        <label class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Search by name, specialization, or class"></label>
         <label><span class="sr-only">Course &amp; Specialization</span><select id="courseFilter"><option value="all">All courses &amp; specializations</option><option>BSIT - Software Development</option><option>BSIT - Network and Cybersecurity</option><option>BSIT - Data Analytics</option><option>BSIT - Marketing Technology</option><option>BSIT - Entrepreneurial Technology</option><option>BSIT - AI-Powered Product Development</option><option>BSBA - Marketing Management</option><option>BSBA - Human Resource Management</option><option>BSBA - Operations Management</option><option>BSBA - AI for Business Strategy and Operations</option></select></label>
         <label><span class="sr-only">Year</span><select id="yearFilter"><option value="all">All years</option><option value="1">Year 1</option><option value="2">Year 2</option><option value="3">Year 3</option><option value="4">Year 4</option></select></label>
+        <label><span class="sr-only">Time slot</span><select id="timeSlotFilter"><option value="all">Any time slot</option><option value="A">A - Morning</option><option value="H">H - Afternoon</option><option value="S">S - Evening</option></select></label>
         <label><span class="sr-only">Preferred work time</span><select id="styleFilter"><option value="all">Any work time</option><option>Morning</option><option>Afternoon</option><option>Evening</option><option>Flexible</option></select></label>
         <button class="button button-secondary button-filter" id="filterButton" type="button">Apply filters</button>
       </div>
@@ -45,6 +46,9 @@
         <label>First name<input id="profileName" required placeholder="Alex"></label>
         <label>Year<select id="profileYear" required><option value="">Choose one</option><option value="1">Year 1</option><option value="2">Year 2</option><option value="3">Year 3</option><option value="4">Year 4</option></select></label>
         <label class="full">Course &amp; Specialization<select id="profileCourse" required><option value="">Choose one</option><option>BSIT - Software Development</option><option>BSIT - Network and Cybersecurity</option><option>BSIT - Data Analytics</option><option>BSIT - Marketing Technology</option><option>BSIT - Entrepreneurial Technology</option><option>BSIT - AI-Powered Product Development</option><option>BSBA - Marketing Management</option><option>BSBA - Human Resource Management</option><option>BSBA - Operations Management</option><option>BSBA - AI for Business Strategy and Operations</option></select></label>
+        <label class="full">Classes this term<div class="class-picker"><select id="profileClassSelect"><option value="">Choose a class</option></select><button class="button button-secondary" id="addClassButton" type="button">Add class</button></div></label>
+        <div class="selected-classes full" id="selectedClasses" aria-live="polite"></div>
+        <label>Time slot<select id="profileTimeSlot" required><option value="">Choose one</option><option value="A">A - Morning</option><option value="H">H - Afternoon</option><option value="S">S - Evening</option></select></label>
         <label class="full">What are you working on?<input id="profileGoal" required></label>
         <fieldset class="full"><legend>Preferred work time</legend><div class="choice-row"><label><input type="radio" name="workstyle" value="Morning" required><span>Morning</span></label><label><input type="radio" name="workstyle" value="Afternoon"><span>Afternoon</span></label><label><input type="radio" name="workstyle" value="Evening"><span>Evening</span></label><label><input type="radio" name="workstyle" value="Flexible"><span>Flexible</span></label></div></fieldset>
       </div>
@@ -78,6 +82,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="supabase-store.js"></script>
+  <script src="courses.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

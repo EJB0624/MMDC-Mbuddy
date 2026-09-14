@@ -19,8 +19,40 @@ create table if not exists public.profiles (
   year_level smallint not null check (year_level between 1 and 4),
   goal text not null check (char_length(goal) between 1 and 500),
   work_style text not null check (work_style in ('Morning', 'Afternoon', 'Evening', 'Flexible')),
+  classes text[] not null default '{}'::text[] constraint profiles_classes_limit_check check (cardinality(classes) <= 8),
+  time_slot text constraint profiles_time_slot_check check (time_slot in ('A', 'H', 'S')),
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists classes text[] not null default '{}'::text[];
+
+alter table public.profiles
+  add column if not exists time_slot text;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'profiles_time_slot_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+      add constraint profiles_time_slot_check check (time_slot in ('A', 'H', 'S'));
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'profiles_classes_limit_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+      add constraint profiles_classes_limit_check check (cardinality(classes) <= 8);
+  end if;
+end $$;
 
 create table if not exists public.saved_buddies (
   user_id uuid not null references auth.users(id) on delete cascade,

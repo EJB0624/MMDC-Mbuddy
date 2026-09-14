@@ -56,7 +56,7 @@
     requireClient();
     const { data, error } = await client
       .from('profiles')
-      .select('id, first_name, course_specialization, year_level, goal, work_style, created_at')
+      .select('id, first_name, course_specialization, year_level, goal, work_style, classes, time_slot, created_at')
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data;
@@ -67,7 +67,7 @@
     const { data, error } = await client
       .from('profiles')
       .upsert({ user_id: currentUser.id, ...profile }, { onConflict: 'user_id' })
-      .select('id, first_name, course_specialization, year_level, goal, work_style, created_at')
+      .select('id, first_name, course_specialization, year_level, goal, work_style, classes, time_slot, created_at')
       .single();
     if (error) throw error;
     return data;

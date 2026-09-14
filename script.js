@@ -1,10 +1,12 @@
 let students = [];
+let selectedClasses = [];
 const state = { saved: [], user: null, isAdmin: false };
 const grid = document.querySelector('#cardGrid');
 const empty = document.querySelector('#emptyState');
 const searchInput = document.querySelector('#searchInput');
 const courseFilter = document.querySelector('#courseFilter');
 const yearFilter = document.querySelector('#yearFilter');
+const timeSlotFilter = document.querySelector('#timeSlotFilter');
 const styleFilter = document.querySelector('#styleFilter');
 const savedCount = document.querySelector('#savedCount');
 const authButton = document.querySelector('#authButton');
@@ -28,8 +30,14 @@ function profileFromRow(profile) {
     courseSpecialization: profile.course_specialization,
     yearLevel: profile.year_level,
     goal: profile.goal,
-    style: profile.work_style
+    style: profile.work_style,
+    classes: Array.isArray(profile.classes) ? profile.classes : [],
+    timeSlot: profile.time_slot || ''
   };
+}
+
+function timeSlotLabel(slot) {
+  return ({ A: 'A - Morning', H: 'H - Afternoon', S: 'S - Evening' })[slot] || slot;
 }
 
 function studentCard(student) {
@@ -40,7 +48,7 @@ function studentCard(student) {
       <div class="card-name"><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(student.courseSpecialization)} · Year ${escapeHtml(student.yearLevel)}</p></div>
     </div>
     <p class="card-note">${escapeHtml(student.goal)}</p>
-    <div class="card-tags"><span>${escapeHtml(student.style)}</span></div>
+    <div class="card-tags"><span>${escapeHtml(student.style)}</span>${student.timeSlot ? `<span>${escapeHtml(timeSlotLabel(student.timeSlot))}</span>` : ''}${student.classes.map(course => `<span class="class-tag">${escapeHtml(course)}</span>`).join('')}</div>
     <div class="card-footer"><button class="button button-secondary save-button ${saved ? 'saved' : ''}" type="button">${saved ? 'Saved' : 'Save profile'}</button></div>
   </article>`;
 }
@@ -49,12 +57,14 @@ function render() {
   const query = searchInput.value.trim().toLowerCase();
   const course = courseFilter.value;
   const year = yearFilter.value;
+  const timeSlot = timeSlotFilter.value;
   const style = styleFilter.value;
   const results = students.filter(student => {
-    const text = [student.name, student.courseSpecialization, student.style, student.goal].join(' ').toLowerCase();
+    const text = [student.name, student.courseSpecialization, student.style, student.goal, student.timeSlot, ...student.classes].join(' ').toLowerCase();
     return (!query || text.includes(query)) &&
       (course === 'all' || student.courseSpecialization === course) &&
       (year === 'all' || String(student.yearLevel) === year) &&
+      (timeSlot === 'all' || student.timeSlot === timeSlot) &&
       (style === 'all' || student.style === style);
   });
   grid.innerHTML = results.map(studentCard).join('');
@@ -137,6 +147,7 @@ function resetFilters() {
   searchInput.value = '';
   courseFilter.value = 'all';
   yearFilter.value = 'all';
+  timeSlotFilter.value = 'all';
   styleFilter.value = 'all';
   render();
 }
@@ -146,12 +157,45 @@ grid.addEventListener('click', event => {
   if (card && event.target.closest('.save-button')) void toggleSave(card.dataset.id);
 });
 
-[searchInput, courseFilter, yearFilter, styleFilter].forEach(control => control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', render));
+[searchInput, courseFilter, yearFilter, timeSlotFilter, styleFilter].forEach(control => control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', render));
 document.querySelector('#resetButton').addEventListener('click', resetFilters);
 document.querySelector('#emptyReset').addEventListener('click', resetFilters);
 document.querySelector('#filterButton').addEventListener('click', render);
 
 const profileDialog = document.querySelector('#profileDialog');
+const profileClassSelect = document.querySelector('#profileClassSelect');
+const selectedClassesElement = document.querySelector('#selectedClasses');
+
+for (const [code, title] of window.MBUDDY_COURSES || []) {
+  const option = document.createElement('option');
+  option.value = `${code} - ${title}`;
+  option.textContent = option.value;
+  profileClassSelect.append(option);
+}
+
+function renderSelectedClasses() {
+  selectedClassesElement.innerHTML = selectedClasses.map((course, index) =>
+    `<span class="selected-class">${escapeHtml(course)}<button type="button" data-remove-class="${index}" aria-label="Remove ${escapeHtml(course)}">×</button></span>`
+  ).join('');
+}
+
+document.querySelector('#addClassButton').addEventListener('click', () => {
+  const course = profileClassSelect.value;
+  if (!course) return;
+  if (selectedClasses.includes(course)) return showToast('Class already added');
+  if (selectedClasses.length >= 8) return showToast('You can add up to 8 classes');
+  selectedClasses.push(course);
+  profileClassSelect.value = '';
+  renderSelectedClasses();
+});
+
+selectedClassesElement.addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-class]');
+  if (!button) return;
+  selectedClasses.splice(Number(button.dataset.removeClass), 1);
+  renderSelectedClasses();
+});
+
 document.querySelector('#profileButton').addEventListener('click', () => {
   if (!requireConfiguration()) return;
   if (!state.user) return openAuthDialog();
@@ -164,14 +208,21 @@ profileDialog.addEventListener('click', event => {
 
 document.querySelector('#profileForm').addEventListener('submit', async event => {
   event.preventDefault();
-  if (!event.currentTarget.reportValidity() || !state.user) return;
   const form = event.currentTarget;
+  if (!form.reportValidity() || !state.user) return;
+  if (!selectedClasses.length) {
+    showToast('Add at least one class');
+    profileClassSelect.focus();
+    return;
+  }
   const profile = {
     first_name: document.querySelector('#profileName').value.trim(),
     course_specialization: document.querySelector('#profileCourse').value,
     year_level: Number(document.querySelector('#profileYear').value),
     goal: document.querySelector('#profileGoal').value.trim(),
-    work_style: new FormData(form).get('workstyle')
+    work_style: new FormData(form).get('workstyle'),
+    classes: [...selectedClasses],
+    time_slot: document.querySelector('#profileTimeSlot').value
   };
   try {
     const created = await window.mbuddyDb.createProfile(profile);
@@ -179,6 +230,8 @@ document.querySelector('#profileForm').addEventListener('submit', async event =>
     students = [normalized, ...students.filter(student => student.id !== normalized.id)];
     profileDialog.close();
     form.reset();
+    selectedClasses = [];
+    renderSelectedClasses();
     render();
     showToast('Profile saved');
   } catch (error) {
@@ -298,13 +351,14 @@ function registerAgentTools() {
   const report = error => console.warn('MBuddy tool registration failed', error);
   const tool = {
     name:'search_buddies', title:'Search buddies',
-    description:'Filter visible MBuddy profiles by search text, course and specialization, year, and preferred work time.',
-    inputSchema:{type:'object',properties:{query:{type:'string'},courseSpecialization:{type:'string'},year:{type:'integer',minimum:1,maximum:4},style:{type:'string'}},additionalProperties:false},
+    description:'Filter visible MBuddy profiles by search text, course and specialization, year, time slot, and preferred work time.',
+    inputSchema:{type:'object',properties:{query:{type:'string'},courseSpecialization:{type:'string'},year:{type:'integer',minimum:1,maximum:4},timeSlot:{type:'string',enum:['A','H','S']},style:{type:'string'}},additionalProperties:false},
     annotations:{readOnlyHint:true,untrustedContentHint:true},
     execute(input = {}) {
       searchInput.value = String(input.query || '');
       courseFilter.value = input.courseSpecialization || 'all';
       yearFilter.value = input.year ? String(input.year) : 'all';
+      timeSlotFilter.value = input.timeSlot || 'all';
       styleFilter.value = input.style || 'all';
       render();
       return { profileCount: Number(document.querySelector('#resultCount').textContent) };
