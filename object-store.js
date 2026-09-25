@@ -38,7 +38,7 @@
       throw new Error('An account with this email already exists');
     }
     const user = {
-      id: id('user'),
+      id: data.seedOwnerIds?.[normalizedEmail] || id('user'),
       email: normalizedEmail,
       passwordHash: await passwordHash(password)
     };
@@ -94,96 +94,3 @@
     if (!admin && profile.user_id !== currentUser.id) throw new Error('You cannot delete this profile');
     data.profiles.splice(data.profiles.indexOf(profile), 1);
     data.savedBuddies = data.savedBuddies.filter(item => item.profileId !== profileId);
-    data.buddyRequests = data.buddyRequests.filter(request => request.senderProfileId !== profileId && request.receiverProfileId !== profileId);
-  }
-
-  async function listSavedProfileIds() {
-    requireUser();
-    return data.savedBuddies.filter(item => item.userId === currentUser.id).map(item => item.profileId);
-  }
-
-  async function saveProfile(profileId) {
-    requireUser();
-    if (!data.profiles.some(profile => profile.id === profileId)) throw new Error('Profile could not be found');
-    if (!data.savedBuddies.some(item => item.userId === currentUser.id && item.profileId === profileId)) {
-      data.savedBuddies.push({ userId: currentUser.id, profileId });
-    }
-  }
-
-  async function unsaveProfile(profileId) {
-    requireUser();
-    data.savedBuddies = data.savedBuddies.filter(item => !(item.userId === currentUser.id && item.profileId === profileId));
-  }
-
-  async function sendBuddyRequest(profileId) {
-    requireUser();
-    const ownProfile = data.profiles.find(profile => profile.user_id === currentUser.id);
-    const targetProfile = data.profiles.find(profile => profile.id === profileId);
-    if (!ownProfile) throw new Error('Create your profile before sending a BuddyUp request');
-    if (!targetProfile) throw new Error('Profile could not be found');
-    if (targetProfile.user_id === currentUser.id) throw new Error('You cannot send a request to yourself');
-    const duplicate = data.buddyRequests.some(request =>
-      request.status !== 'declined' &&
-      ((request.senderProfileId === ownProfile.id && request.receiverProfileId === targetProfile.id) ||
-       (request.senderProfileId === targetProfile.id && request.receiverProfileId === ownProfile.id))
-    );
-    if (duplicate) throw new Error('A BuddyUp request already exists');
-    data.buddyRequests.push({
-      id: id('request'),
-      senderProfileId: ownProfile.id,
-      receiverProfileId: targetProfile.id,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    });
-  }
-
-  async function listBuddyRequests() {
-    requireUser();
-    const ownProfile = data.profiles.find(profile => profile.user_id === currentUser.id);
-    if (!ownProfile) return [];
-    return data.buddyRequests
-      .filter(request => request.senderProfileId === ownProfile.id || request.receiverProfileId === ownProfile.id)
-      .map(request => {
-        const incoming = request.receiverProfileId === ownProfile.id;
-        const otherProfileId = incoming ? request.senderProfileId : request.receiverProfileId;
-        const otherProfile = data.profiles.find(profile => profile.id === otherProfileId);
-        const otherUser = data.users.find(user => user.id === otherProfile?.user_id);
-        return {
-          request_id: request.id,
-          other_profile_id: otherProfileId,
-          other_name: otherProfile?.first_name || 'Unknown student',
-          other_email: request.status === 'accepted' ? otherUser?.email || null : null,
-          request_status: request.status,
-          direction: incoming ? 'incoming' : 'outgoing'
-        };
-      });
-  }
-
-  async function respondToBuddyRequest(requestId, accept) {
-    requireUser();
-    const ownProfile = data.profiles.find(profile => profile.user_id === currentUser.id);
-    const request = data.buddyRequests.find(item => item.id === requestId);
-    if (!request || request.receiverProfileId !== ownProfile?.id) throw new Error('Request could not be found');
-    request.status = accept ? 'accepted' : 'declined';
-  }
-
-  window.mbuddyDb = {
-    configured: true,
-    init,
-    signUp,
-    signIn,
-    signOut,
-    getUser: () => copy(currentUser),
-    listProfiles,
-    createProfile,
-    isAdmin,
-    deleteProfile,
-    listSavedProfileIds,
-    saveProfile,
-    unsaveProfile,
-    listBuddyRequests,
-    sendBuddyRequest,
-    respondToBuddyRequest,
-    buddyFeaturesAvailable: () => true
-  };
-}());
