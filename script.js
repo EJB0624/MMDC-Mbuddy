@@ -142,9 +142,7 @@ function showError(error, fallback) {
 }
 
 function requireConfiguration() {
-  if (window.mbuddyDb.configured) return true;
-  showToast('Add your Supabase URL and publishable key in config.js');
-  return false;
+  return Boolean(window.mbuddyDb);
 }
 
 const authDialog = document.querySelector('#authDialog');
@@ -516,12 +514,6 @@ document.querySelector('#authForm').addEventListener('submit', async event => {
         return;
       }
       const result = await window.mbuddyDb.signUp(email, password);
-      if (!result.session) {
-        authDialog.close();
-        form.reset();
-        showToast('Check your email to confirm your account');
-        return;
-      }
       state.user = result.session.user;
       showToast('Account created');
     } else {
@@ -538,13 +530,12 @@ document.querySelector('#authForm').addEventListener('submit', async event => {
 
 async function start() {
   render();
-  if (!window.mbuddyDb.configured) return;
   try {
     const result = await window.mbuddyDb.init();
     state.user = result.user;
     await refreshAccountData();
   } catch (error) {
-    showError(error, 'Could not connect to Supabase');
+    showError(error, 'Could not start MBuddy');
   }
 }
 
