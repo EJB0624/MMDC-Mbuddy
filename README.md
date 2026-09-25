@@ -1,6 +1,6 @@
 # MBuddy
 
-A student-pairing website built with HTML, CSS, JavaScript, and Supabase.
+A student-pairing website built with HTML, CSS, JavaScript.
 
 ## Course Project
 
