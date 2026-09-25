@@ -18,22 +18,22 @@
   <main id="top">
     <section class="intro" id="matches">
       <div class="intro-row">
-        <div><h1>Find a study buddy</h1></div>
+        <div><span class="intro-label">MBUDDY / FIND PEOPLE</span><h1>Find a study buddy<span class="hero-period">.</span></h1></div>
       </div>
     </section>
 
     <section class="match-section">
       <div class="filter-bar" aria-label="Match filters">
-        <label class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Search by name, specialization, or class"></label>
-        <label><span class="sr-only">Course &amp; Specialization</span><select id="courseFilter"><option value="all">All courses &amp; specializations</option><option>BSIT - Software Development</option><option>BSIT - Network and Cybersecurity</option><option>BSIT - Data Analytics</option><option>BSIT - Marketing Technology</option><option>BSIT - Entrepreneurial Technology</option><option>BSIT - AI-Powered Product Development</option><option>BSBA - Marketing Management</option><option>BSBA - Human Resource Management</option><option>BSBA - Operations Management</option><option>BSBA - AI for Business Strategy and Operations</option></select></label>
-        <label><span class="sr-only">Year</span><select id="yearFilter"><option value="all">All years</option><option value="1">Year 1</option><option value="2">Year 2</option><option value="3">Year 3</option><option value="4">Year 4</option></select></label>
-        <label><span class="sr-only">Class time slot</span><select id="timeSlotFilter"><option value="all">Any class time slot</option><option value="A">A - Morning</option><option value="H">H - Afternoon</option><option value="S">S - Evening</option></select></label>
-        <label><span class="sr-only">Preferred work time</span><select id="styleFilter"><option value="all">Any work time</option><option>Morning</option><option>Afternoon</option><option>Evening</option><option>Flexible</option></select></label>
+        <label class="search-box">Search<input id="searchInput" type="search" placeholder="Name, specialization, or class"></label>
+        <label class="course-filter">Course &amp; Specialization<select id="courseFilter"><option value="all">All courses &amp; specializations</option><option>BSIT - Software Development</option><option>BSIT - Network and Cybersecurity</option><option>BSIT - Data Analytics</option><option>BSIT - Marketing Technology</option><option>BSIT - Entrepreneurial Technology</option><option>BSIT - AI-Powered Product Development</option><option>BSBA - Marketing Management</option><option>BSBA - Human Resource Management</option><option>BSBA - Operations Management</option><option>BSBA - AI for Business Strategy and Operations</option></select></label>
+        <label>Year<select id="yearFilter"><option value="all">All years</option><option value="1">Year 1</option><option value="2">Year 2</option><option value="3">Year 3</option><option value="4">Year 4</option></select></label>
+        <label>Class time slot<select id="timeSlotFilter"><option value="all">Any time slot</option><option value="A">A - Morning</option><option value="H">H - Afternoon</option><option value="S">S - Evening</option></select></label>
+        <label>Preferred work time<select id="styleFilter"><option value="all">Any work time</option><option>Morning</option><option>Afternoon</option><option>Evening</option><option>Flexible</option></select></label>
         <button class="button button-secondary button-filter" id="filterButton" type="button">Apply filters</button>
       </div>
       <div class="results-meta"><p><strong id="resultCount">0</strong> matches</p><button class="text-button" id="resetButton" type="button">Clear filters</button></div>
       <div class="card-grid" id="cardGrid"></div>
-      <div class="empty-state" id="emptyState"><h3>No student profiles</h3><button class="button button-primary" id="emptyReset" type="button">Reset filters</button></div>
+      <div class="empty-state" id="emptyState"><div class="empty-icon" aria-hidden="true">M</div><h3 id="emptyTitle">No student profiles</h3><button class="button button-secondary" id="emptyReset" type="button" hidden>Clear filters</button></div>
     </section>
   </main>
 
@@ -48,7 +48,7 @@
         <label>Term<select id="profileTerm" required><option value="">Choose one</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></label>
         <label class="full">Course &amp; Specialization<select id="profileCourse" required><option value="">Choose one</option><option>BSIT - Software Development</option><option>BSIT - Network and Cybersecurity</option><option>BSIT - Data Analytics</option><option>BSIT - Marketing Technology</option><option>BSIT - Entrepreneurial Technology</option><option>BSIT - AI-Powered Product Development</option><option>BSBA - Marketing Management</option><option>BSBA - Human Resource Management</option><option>BSBA - Operations Management</option><option>BSBA - AI for Business Strategy and Operations</option></select></label>
         <label class="class-limit-toggle full"><input id="profileAllClasses" type="checkbox"><span>Show all classes in my specialization (advanced or petitioned)</span></label>
-        <label class="full">Classes this term<div class="class-picker"><select id="profileClassSelect"><option value="">Choose a class</option></select><select id="profileClassTimeSlot" aria-label="Class time slot"><option value="">Time slot</option><option value="A">A - Morning</option><option value="H">H - Afternoon</option><option value="S">S - Evening</option></select><button class="button button-secondary" id="addClassButton" type="button">Add class</button></div></label>
+        <div class="full class-field"><span class="field-label">Classes this term</span><div class="class-picker"><select id="profileClassSelect" aria-label="Choose a class"><option value="">Choose a class</option></select><select id="profileClassTimeSlot" aria-label="Class time slot"><option value="">Time slot</option><option value="A">A - Morning</option><option value="H">H - Afternoon</option><option value="S">S - Evening</option></select><button class="button button-secondary" id="addClassButton" type="button">Add class</button></div></div>
         <div class="selected-classes full" id="selectedClasses" aria-live="polite"></div>
         <label class="full">What are you working on?<input id="profileGoal" required></label>
         <fieldset class="full"><legend>Preferred work time</legend><div class="choice-row"><label><input type="radio" name="workstyle" value="Morning" required><span>Morning</span></label><label><input type="radio" name="workstyle" value="Afternoon"><span>Afternoon</span></label><label><input type="radio" name="workstyle" value="Evening"><span>Evening</span></label><label><input type="radio" name="workstyle" value="Flexible"><span>Flexible</span></label></div></fieldset>
