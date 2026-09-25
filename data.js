@@ -1,5 +1,12 @@
 window.MBUDDY_DATA = {
-  users: [],
+  users: [
+    {
+      id: 'user-edward-basilonia',
+      emailHash: '9ca01da4ed2bcce1053c14f915dfd84ac0334e1ef6f677c4c34c18d210bf303a',
+      passwordSalt: 'f4879102fef9e2963f950a56315efd95',
+      passwordHash: '81654a8dc4f30aa984f3299c9398bd78833ab0f03f55731ffa1d7a4ab05a818c'
+    }
+  ],
   profiles: [
     {
       id: 'profile-edward-basilonia',
@@ -24,6 +31,5 @@ window.MBUDDY_DATA = {
   ],
   savedBuddies: [],
   buddyRequests: [],
-  seedOwnerIds: { 'lr.ejbasilonia@mmdc.mcl.edu.ph': 'user-edward-basilonia' },
-  adminEmails: ['lr.ejbasilonia@mmdc.mcl.edu.ph']
+  adminUserIds: ['user-edward-basilonia']
 };
