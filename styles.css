@@ -197,11 +197,7 @@ input:focus, select:focus {
   border: 1px dashed #bac9dc; border-radius: 11px; background: var(--paper);
   text-align: center;
 }
-.empty-icon {
-  display: grid; place-items: center; width: 54px; height: 54px;
-  margin-bottom: 17px; border: 1px solid #dce5f0; border-radius: 13px;
-  background: var(--soft); color: var(--navy); font-size: 23px; font-weight: 850;
-}
+.empty-logo { display: block; width: 110px; height: 90px; margin-bottom: 12px; object-fit: contain; }
 .empty-state h3 { margin: 0; font-size: 18px; }
 .empty-state .button { margin-top: 16px; }
 footer {
