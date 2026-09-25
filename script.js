@@ -120,6 +120,10 @@ function render() {
   document.querySelector('#resultCount').textContent = results.length;
   empty.hidden = results.length > 0;
   grid.hidden = results.length === 0;
+  const hasFilters = Boolean(query) || course !== 'all' || year !== 'all' || timeSlot !== 'all' || style !== 'all';
+  document.querySelector('#emptyTitle').textContent = students.length && hasFilters ? 'No matching profiles' : 'No student profiles';
+  document.querySelector('#emptyReset').hidden = !hasFilters;
+  document.querySelector('#resetButton').hidden = !hasFilters;
   savedCount.textContent = state.saved.length;
   const incomingRequestCount = state.requests.filter(request => request.request_status === 'pending' && request.direction === 'incoming').length;
   requestCount.textContent = incomingRequestCount;
