@@ -89,10 +89,10 @@ function studentCard(student) {
   const isOwnProfile = state.user?.id === student.ownerId;
   return `<article class="buddy-card" data-id="${escapeHtml(student.id)}">
     <div class="card-top">
-      <div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div>
+      <div class="card-avatar">${escapeHtml(initials(student.name))}</div>
       <div class="card-name"><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(programLine(student))}</p></div>
     </div>
-    <p class="card-note">${escapeHtml(student.goal)}</p>
+    <div class="card-focus"><span>WORKING ON</span><p class="card-note">${escapeHtml(student.goal)}</p></div>
     <div class="card-tags"><span>${escapeHtml(student.style)}</span>${student.timeSlot ? `<span>${escapeHtml(timeSlotLabel(student.timeSlot))}</span>` : ''}${student.classes.map(course => `<span class="class-tag">${escapeHtml(course)}</span>`).join('')}</div>
     ${buddyContact(student)}
     <div class="card-footer">${isOwnProfile
@@ -118,6 +118,7 @@ function render() {
   });
   grid.innerHTML = results.map(studentCard).join('');
   document.querySelector('#resultCount').textContent = results.length;
+  document.querySelector('#resultLabel').textContent = results.length === 1 ? 'match' : 'matches';
   empty.hidden = results.length > 0;
   grid.hidden = results.length === 0;
   const hasFilters = Boolean(query) || course !== 'all' || year !== 'all' || timeSlot !== 'all' || style !== 'all';
@@ -181,7 +182,7 @@ async function refreshAccountData() {
 function renderAdminList() {
   const adminList = document.querySelector('#adminList');
   adminList.innerHTML = students.length
-    ? students.map(student => `<div class="saved-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(programLine(student))}</p></div><button class="danger-button" type="button" data-delete-profile="${escapeHtml(student.id)}">Delete</button></div>`).join('')
+    ? students.map(student => `<div class="saved-item"><div class="card-avatar">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(programLine(student))}</p></div><button class="danger-button" type="button" data-delete-profile="${escapeHtml(student.id)}">Delete</button></div>`).join('')
     : '<div class="saved-empty">No profiles</div>';
 }
 
@@ -402,7 +403,7 @@ document.querySelector('#savedNav').addEventListener('click', () => {
   if (!state.user) return openAuthDialog();
   const savedStudents = students.filter(student => state.saved.includes(student.id));
   document.querySelector('#savedList').innerHTML = savedStudents.length
-    ? savedStudents.map(student => `<div class="saved-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(programLine(student))}</p></div><button type="button" data-remove="${escapeHtml(student.id)}">Remove</button></div>`).join('')
+    ? savedStudents.map(student => `<div class="saved-item"><div class="card-avatar">${escapeHtml(initials(student.name))}</div><div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(programLine(student))}</p></div><button type="button" data-remove="${escapeHtml(student.id)}">Remove</button></div>`).join('')
     : '<div class="saved-empty">No saved profiles</div>';
   document.querySelector('#savedDialog').showModal();
 });
@@ -428,7 +429,7 @@ function renderRequestsList() {
     } else if (request.other_email) {
       actions = `<a class="buddy-email-link" href="${escapeHtml(gmailComposeUrl(request.other_email))}" target="_blank" rel="noopener noreferrer">${escapeHtml(request.other_email)}</a>`;
     }
-    return `<div class="request-item"><div class="card-avatar" style="background:#dbeafe">${escapeHtml(initials(request.other_name))}</div><div class="request-details"><h3>${escapeHtml(request.other_name)}</h3><p>${request.request_status === 'accepted' ? 'Buddy' : request.direction === 'incoming' ? 'Wants to BuddyUp' : 'Request sent'}</p></div>${actions}</div>`;
+    return `<div class="request-item"><div class="card-avatar">${escapeHtml(initials(request.other_name))}</div><div class="request-details"><h3>${escapeHtml(request.other_name)}</h3><p>${request.request_status === 'accepted' ? 'Buddy' : request.direction === 'incoming' ? 'Wants to BuddyUp' : 'Request sent'}</p></div>${actions}</div>`;
   }).join('') : '<div class="saved-empty">No BuddyUp requests</div>';
 }
 
