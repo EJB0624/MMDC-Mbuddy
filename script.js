@@ -382,6 +382,7 @@ profileForm.addEventListener('submit', async event => {
     classes: [...selectedClasses],
     time_slot: null
   };
+  profileSubmitButton.disabled = true;
   try {
     const created = await window.mbuddyDb.createProfile(profile);
     const normalized = profileFromRow(created);
@@ -394,6 +395,8 @@ profileForm.addEventListener('submit', async event => {
     showToast('Profile saved');
   } catch (error) {
     showError(error, 'Could not save profile');
+  } finally {
+    profileSubmitButton.disabled = false;
   }
 });
 
@@ -515,6 +518,8 @@ document.querySelector('#authForm').addEventListener('submit', async event => {
   const email = document.querySelector('#authEmail').value.trim();
   const password = document.querySelector('#authPassword').value;
   const action = event.submitter?.value;
+  const submitButtons = form.querySelectorAll('button[type="submit"]');
+  submitButtons.forEach(button => { button.disabled = true; });
   try {
     if (action === 'signup') {
       if (!/@mmdc\.mcl\.edu\.ph$/i.test(email)) {
@@ -535,6 +540,8 @@ document.querySelector('#authForm').addEventListener('submit', async event => {
     if (openProfile) openProfileEditor(students.find(student => student.ownerId === state.user.id) || null);
   } catch (error) {
     showError(error, 'Account request failed');
+  } finally {
+    submitButtons.forEach(button => { button.disabled = false; });
   }
 });
 
@@ -573,3 +580,4 @@ function registerAgentTools() {
 
 void start();
 registerAgentTools();
+

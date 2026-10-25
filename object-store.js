@@ -1,127 +1,72 @@
 (function () {
-  const data = window.MBUDDY_DATA;
+  // Saved buddies and requests remain session-only demonstrations.
+  const data = { profiles: [], savedBuddies: [], buddyRequests: [] };
   let currentUser = null;
+  let sessionToken = null;
+  let administrator = false;
   const knownEmails = new Map();
-
-  function id(prefix) {
-    const value = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    return `${prefix}-${value}`;
-  }
-
-  function copy(value) {
-    return typeof structuredClone === 'function'
-      ? structuredClone(value)
-      : JSON.parse(JSON.stringify(value));
-  }
-
-  function emailKey(email) {
-    return String(email || '').trim().toLowerCase();
-  }
-
+  const copy = value => structuredClone(value);
+  const id = prefix => `${prefix}-${crypto.randomUUID()}`;
   function requireUser() {
     if (!currentUser) throw new Error('Sign in to continue');
   }
-
-  function cryptoProvider() {
-    if (!globalThis.crypto?.subtle || !globalThis.crypto?.getRandomValues) {
-      throw new Error('Open MBuddy on localhost or HTTPS to use accounts');
+  async function api(url, options = {}) {
+    let response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}), ...options.headers }
+      });
+    } catch {
+      throw new Error('Cannot reach MBuddy. Start the server with npm start');
     }
-    return globalThis.crypto;
+    const body = response.status === 204 ? null : await response.json().catch(() => null);
+    if (!response.ok) throw new Error(body?.error || 'Could not complete the request');
+    return body;
   }
-
-  function hex(bytes) {
-    return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
-  }
-
-  function fromHex(value) {
-    return Uint8Array.from(value.match(/.{2}/g), pair => parseInt(pair, 16));
-  }
-
-  async function emailHash(email) {
-    const digest = await cryptoProvider().subtle.digest('SHA-256', new TextEncoder().encode(emailKey(email)));
-    return hex(digest);
-  }
-
-  async function passwordHash(password, salt) {
-    const crypto = cryptoProvider();
-    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-    const bits = await crypto.subtle.deriveBits({
-      name: 'PBKDF2', salt: fromHex(salt), iterations: 120000, hash: 'SHA-256'
-    }, key, 256);
-    return hex(bits);
-  }
-
   async function init() {
     return { configured: true, user: currentUser };
   }
-
-  async function signUp(email, password) {
-    const normalizedEmail = emailKey(email);
-    const hashedEmail = await emailHash(normalizedEmail);
-    if (data.users.some(user => user.emailHash === hashedEmail)) {
-      throw new Error('An account with this email already exists');
-    }
-    const salt = hex(cryptoProvider().getRandomValues(new Uint8Array(16)));
-    const user = {
-      id: id('user'),
-      emailHash: hashedEmail,
-      passwordSalt: salt,
-      passwordHash: await passwordHash(password, salt)
-    };
-    data.users.push(user);
-    knownEmails.set(user.id, normalizedEmail);
-    currentUser = { id: user.id, email: normalizedEmail };
-    return { user: copy(currentUser), session: { user: copy(currentUser) } };
-  }
-
-  async function signIn(email, password) {
-    const normalizedEmail = emailKey(email);
-    const hashedEmail = await emailHash(normalizedEmail);
-    const user = data.users.find(account => account.emailHash === hashedEmail);
-    const hash = user && await passwordHash(password, user.passwordSalt);
-    if (!user || user.passwordHash !== hash) throw new Error('Incorrect email or password');
-    knownEmails.set(user.id, normalizedEmail);
-    currentUser = { id: user.id, email: normalizedEmail };
+  async function account(path, email, password) {
+    const result = await api(path, { method: 'POST', body: JSON.stringify({ email, password }) });
+    sessionToken = result.token;
+    currentUser = result.user;
+    administrator = result.isAdmin;
+    knownEmails.set(currentUser.id, currentUser.email);
     return copy(currentUser);
   }
-
+  async function signUp(email, password) {
+    const user = await account('/api/accounts', email, password);
+    return { user };
+  }
+  async function signIn(email, password) {
+    return account('/api/session', email, password);
+  }
   async function signOut() {
+    await api('/api/session', { method: 'DELETE' });
     currentUser = null;
+    sessionToken = null;
+    administrator = false;
   }
-
   async function listProfiles() {
-    return copy([...data.profiles].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    data.profiles = await api('/api/profiles');
+    return copy(data.profiles);
   }
-
   async function createProfile(profile) {
     requireUser();
     const existing = data.profiles.find(item => item.user_id === currentUser.id);
-    if (existing) {
-      Object.assign(existing, copy(profile), { updated_at: new Date().toISOString() });
-      return copy(existing);
-    }
-    const created = {
-      id: id('profile'),
-      user_id: currentUser.id,
-      ...copy(profile),
-      created_at: new Date().toISOString()
-    };
-    data.profiles.push(created);
-    return copy(created);
+    return api(existing ? `/api/profiles/${encodeURIComponent(existing.id)}` : '/api/profiles', {
+      method: existing ? 'PUT' : 'POST', body: JSON.stringify(profile)
+    });
   }
-
   async function isAdmin() {
     requireUser();
-    return data.adminUserIds.includes(currentUser.id);
+    return administrator;
   }
-
   async function deleteProfile(profileId) {
     requireUser();
-    const profile = data.profiles.find(item => item.id === profileId);
-    if (!profile) throw new Error('Profile could not be found');
-    const admin = data.adminUserIds.includes(currentUser.id);
-    if (!admin && profile.user_id !== currentUser.id) throw new Error('You cannot delete this profile');
-    data.profiles.splice(data.profiles.indexOf(profile), 1);
+    await api(`/api/profiles/${encodeURIComponent(profileId)}`, { method: 'DELETE' });
+    data.profiles = data.profiles.filter(item => item.id !== profileId);
     data.savedBuddies = data.savedBuddies.filter(item => item.profileId !== profileId);
     data.buddyRequests = data.buddyRequests.filter(request => request.senderProfileId !== profileId && request.receiverProfileId !== profileId);
   }
@@ -215,3 +160,4 @@
     buddyFeaturesAvailable: () => true
   };
 }());
+
