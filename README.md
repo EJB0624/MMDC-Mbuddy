@@ -26,6 +26,12 @@ Open http://localhost:3000. Express serves the frontend and API together. Use th
 
 The default listener is local to your computer. A hosting service that runs Node.js can use `HOST=0.0.0.0` and its assigned `PORT`. Use HTTPS for an online deployment. Hosting is a separate step; pushing to GitHub only updates the source files.
 
+## Vercel preview
+
+The repository includes `vercel.json` and `api/index.js`. Vercel routes `/api/*` to the Express function and publishes only the listed frontend assets. Keep the Vercel project's Root Directory at this repository's root, then redeploy the latest commit. If you use another repository, copy both deployment files along with the updated frontend adapter. No Supabase key is needed.
+
+The Vercel entry writes its demo JSON file under `/tmp` because the deployed source is read-only. This is temporary, instance-local storage: new accounts, profiles, and sessions can disappear on a cold start or redeployment, and separate instances do not share them. This preview is not a durable multi-user deployment. Use `npm start` locally, or a Node host with persistent disk, to demonstrate the milestone's restart-persistence requirement. Do not use a Vercel preview as evidence that information survives a server restart.
+
 ## Backend-supported feature
 
 Profiles are loaded, validated, created, edited, and deleted through the Express API. `object-store.js` now uses `fetch()` for accounts and profiles. The server checks profile ownership; an administrator can delete another profile but cannot edit it.
@@ -59,4 +65,5 @@ npm test
 The integration tests use the real Express server, HTTP requests, and the frontend data adapter. They cover valid and invalid inputs, repeated and concurrent submissions, ownership, admin deletion, private files, and data persistence across a server restart. Each run uses isolated temporary files and removes them afterward.
 
 See [Milestone 2 implementation and testing notes](docs/milestone-2.md) for evidence and the remaining team documentation tasks.
+
 

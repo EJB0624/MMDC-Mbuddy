@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["data.js", "courses.js", "index.html", "styles.css", "script.js", "object-store.js", "mbuddy-logo.png"]
+      }
+    },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "styles.css", "use": "@vercel/static" },
+    { "src": "script.js", "use": "@vercel/static" },
+    { "src": "object-store.js", "use": "@vercel/static" },
+    { "src": "courses.js", "use": "@vercel/static" },
+    { "src": "mbuddy-logo.png", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
+    { "src": "/", "dest": "/index.html" },
+    { "handle": "filesystem" }
+  ]
+}

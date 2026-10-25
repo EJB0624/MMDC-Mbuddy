@@ -18,10 +18,15 @@
         headers: { 'Content-Type': 'application/json', ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}), ...options.headers }
       });
     } catch {
-      throw new Error('Cannot reach MBuddy. Start the server with npm start');
+      throw new Error('Cannot reach MBuddy. Check your connection and try again');
     }
-    const body = response.status === 204 ? null : await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.error || 'Could not complete the request');
+    if (response.status === 204) return null;
+    const body = await response.json().catch(() => null);
+    if (!body) {
+      console.error('MBuddy API returned a non-JSON response:', url, response.status);
+      throw new Error('The MBuddy server is unavailable on this deployment. Please try again later');
+    }
+    if (!response.ok) throw new Error(body.error || `MBuddy could not process the request (${response.status})`);
     return body;
   }
   async function init() {
@@ -160,4 +165,5 @@
     buddyFeaturesAvailable: () => true
   };
 }());
+
 

@@ -6,6 +6,43 @@ const vm = require('node:vm');
 const crypto = require('node:crypto');
 const { once } = require('node:events');
 const { createApp } = require('../server');
+const http = require('node:http');
+const { createHandler } = require('../api');
+
+test('Vercel entry handles account creation and sign-in on the original API paths', async t => {
+  const directory = await fs.mkdtemp(path.join(process.cwd(), 'mbuddy-vercel-test-'));
+  const server = http.createServer(createHandler({ dataFile: path.join(directory, 'data.json') }));
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+    await fs.rm(directory, { recursive: true, force: true });
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const credentials = JSON.stringify({ email: 'vercel.test@mmdc.mcl.edu.ph', password: 'test-vercel-password' });
+  for (const [route, status] of [['/api/accounts', 201], ['/api/session', 200]]) {
+    const response = await fetch(base + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: credentials });
+    assert.equal(response.status, status);
+    const body = await response.json();
+    assert.ok(body.token);
+    assert.ok(body.user.id);
+  }
+  assert.ok(Array.isArray(await (await fetch(base + '/api/profiles')).json()));
+});
+
+test('frontend explains HTML hosting failures instead of a generic request error', async () => {
+  const source = await fs.readFile(path.join(__dirname, '..', 'object-store.js'), 'utf8');
+  for (const status of [200, 404, 405, 502]) {
+    const context = {
+      window: {}, structuredClone, crypto: crypto.webcrypto, console: { error() {} },
+      fetch: async () => new Response('<html>Hosting error</html>', { status, headers: { 'Content-Type': 'text/html' } })
+    };
+    vm.runInNewContext(source, context);
+    await assert.rejects(context.window.mbuddyDb.signIn('test@mmdc.mcl.edu.ph', 'test-password'), /server is unavailable on this deployment/);
+    await assert.rejects(context.window.mbuddyDb.signUp('test@mmdc.mcl.edu.ph', 'test-password'), /server is unavailable on this deployment/);
+  }
+});
 
 test('profile API and frontend adapter work together and survive a server restart', async t => {
   const directory = await fs.mkdtemp(path.join(process.cwd(), 'mbuddy-test-'));
@@ -129,3 +166,4 @@ test('profile API and frontend adapter work together and survive a server restar
     assert.equal((await request('/api/profiles')).body.length, 1);
   });
 });
+
